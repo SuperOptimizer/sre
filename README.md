@@ -1,2 +1,2 @@
 # sre
-speedrunning emulatiors
+speedrunning emulators
