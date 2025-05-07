@@ -1,0 +1,24 @@
+[submodule "thirdparty/sokol"]
+	path = thirdparty/sokol
+	url = https://github.com/floooh/sokol.git
+[submodule "thirdparty/sokol-samples"]
+	path = thirdparty/sokol-samples
+	url = https://github.com/floooh/sokol-samples.git
+[submodule "thirdparty/Nuklear"]
+	path = thirdparty/Nuklear
+	url = https://github.com/Immediate-Mode-UI/Nuklear.git
+[submodule "thirdparty/xxHash"]
+	path = thirdparty/xxHash
+	url = https://github.com/Cyan4973/xxHash.git
+[submodule "thirdparty/tgc"]
+	path = thirdparty/tgc
+	url = https://github.com/orangeduck/tgc.git
+[submodule "thirdparty/stb"]
+	path = thirdparty/stb
+	url = https://github.com/nothings/stb.git
+[submodule "thirdparty/munit"]
+	path = thirdparty/munit
+	url = https://github.com/nemequ/munit.git
+[submodule "thirdparty/minicoro"]
+	path = thirdparty/minicoro
+	url = https://github.com/edubart/minicoro.git

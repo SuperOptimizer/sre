@@ -1,0 +1,27 @@
+cmake_minimum_required(VERSION 3.20)
+project(sre C)
+
+set(CMAKE_C_COMPILER "clang")
+set(CMAKE_VERBOSE_MAKEFILE ON CACHE BOOL "Verbose output from Makefile" FORCE)
+set(CMAKE_GENERATOR "Ninja" CACHE INTERNAL "Generator used by CMake")
+set(CMAKE_C_STANDARD 23)
+
+if(NOT CMAKE_BUILD_TYPE)
+    set(CMAKE_BUILD_TYPE "Debug" CACHE STRING "Choose the type of build (Debug or Release)" FORCE)
+endif()
+
+add_executable(sre src/main.c src/lr35902.c)
+
+target_include_directories(sre PUBLIC thirdparty/minicoro)
+target_compile_definitions(sre PUBLIC MCO_USE_VMEM_ALLOCATOR=1 MCO_ZERO_MEMORY=1)
+target_compile_options(sre PUBLIC -fno-rtti -fno-exceptions -fwrapv -fno-common -fPIE -flto=thin)
+target_link_options(sre PUBLIC -fuse-ld=lld -rdynamic -flto=thin)
+
+if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+    target_compile_options(sre PRIVATE -g3 -Og -Wall -Wextra  -Weverything)
+    target_compile_options(sre PRIVATE -Wno-pre-c23-compat -Wno-declaration-after-statement -Wno-unsafe-buffer-usage -Wno-reserved-identifier)
+    target_compile_definitions(sre PRIVATE DEBUG=1)
+elseif(CMAKE_BUILD_TYPE STREQUAL "Release")
+    target_compile_options(sre PRIVATE -g0 -Ofast)
+    target_compile_definitions(sre PRIVATE NDEBUG=1)
+endif()
