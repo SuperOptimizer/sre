@@ -63,12 +63,7 @@ typedef struct lr35902 {
 
   u8* memory;
 
-  u8 (*read8)(struct lr35902* lr35902, u16 addr);
-  void (*write8)(struct lr35902* lr35902, u16 addr, u8 data);
-
   mco_coro* cpu_mco_coro;
-  void (*cpu_coro)(mco_coro* co);
-
 } lr35902;
 
 void lr35902_new(lr35902* lr35902);
