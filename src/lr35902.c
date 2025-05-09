@@ -219,6 +219,209 @@ static inline void cp_operation(lr35902* cpu, u8 value) {
 }
 
 
+// Function for RLC operations (Rotate Left Circular)
+static inline u8 do_rlc(lr35902* cpu, u8 value) {
+    u8 carry = (value & 0x80) >> 7;
+    u8 result = (value << 1) | carry;
+
+    set_flag(cpu, FLAG_Z, result == 0);
+    set_flag(cpu, FLAG_N, false);
+    set_flag(cpu, FLAG_H, false);
+    set_flag(cpu, FLAG_C, carry);
+
+    return result;
+}
+
+// Function for RRC operations (Rotate Right Circular)
+static inline u8 do_rrc(lr35902* cpu, u8 value) {
+    u8 carry = value & 0x01;
+    u8 result = (value >> 1) | (carry << 7);
+
+    set_flag(cpu, FLAG_Z, result == 0);
+    set_flag(cpu, FLAG_N, false);
+    set_flag(cpu, FLAG_H, false);
+    set_flag(cpu, FLAG_C, carry);
+
+    return result;
+}
+
+// Function for RL operations (Rotate Left through Carry)
+static inline u8 do_rl(lr35902* cpu, u8 value) {
+    u8 old_carry = get_flag(cpu, FLAG_C) ? 1 : 0;
+    u8 new_carry = (value & 0x80) >> 7;
+    u8 result = (value << 1) | old_carry;
+
+    set_flag(cpu, FLAG_Z, result == 0);
+    set_flag(cpu, FLAG_N, false);
+    set_flag(cpu, FLAG_H, false);
+    set_flag(cpu, FLAG_C, new_carry);
+
+    return result;
+}
+
+// Function for RR operations (Rotate Right through Carry)
+static inline u8 do_rr(lr35902* cpu, u8 value) {
+    u8 old_carry = get_flag(cpu, FLAG_C) ? 1 : 0;
+    u8 new_carry = value & 0x01;
+    u8 result = (value >> 1) | (old_carry << 7);
+
+    set_flag(cpu, FLAG_Z, result == 0);
+    set_flag(cpu, FLAG_N, false);
+    set_flag(cpu, FLAG_H, false);
+    set_flag(cpu, FLAG_C, new_carry);
+
+    return result;
+}
+
+// Function for SLA operations (Shift Left Arithmetic)
+static inline u8 do_sla(lr35902* cpu, u8 value) {
+    u8 carry = (value & 0x80) >> 7;
+    u8 result = value << 1;
+
+    set_flag(cpu, FLAG_Z, result == 0);
+    set_flag(cpu, FLAG_N, false);
+    set_flag(cpu, FLAG_H, false);
+    set_flag(cpu, FLAG_C, carry);
+
+    return result;
+}
+
+// Function for SRA operations (Shift Right Arithmetic)
+static inline u8 do_sra(lr35902* cpu, u8 value) {
+    u8 carry = value & 0x01;
+    u8 result = (value >> 1) | (value & 0x80);
+
+    set_flag(cpu, FLAG_Z, result == 0);
+    set_flag(cpu, FLAG_N, false);
+    set_flag(cpu, FLAG_H, false);
+    set_flag(cpu, FLAG_C, carry);
+
+    return result;
+}
+
+// Function for SWAP operations
+static inline u8 do_swap(lr35902* cpu, u8 value) {
+    u8 result = ((value & 0x0F) << 4) | ((value & 0xF0) >> 4);
+
+    set_flag(cpu, FLAG_Z, result == 0);
+    set_flag(cpu, FLAG_N, false);
+    set_flag(cpu, FLAG_H, false);
+    set_flag(cpu, FLAG_C, false);
+
+    return result;
+}
+
+// Function for SRL operations (Shift Right Logical)
+static inline u8 do_srl(lr35902* cpu, u8 value) {
+    u8 carry = value & 0x01;
+    u8 result = value >> 1;
+
+    set_flag(cpu, FLAG_Z, result == 0);
+    set_flag(cpu, FLAG_N, false);
+    set_flag(cpu, FLAG_H, false);
+    set_flag(cpu, FLAG_C, carry);
+
+    return result;
+}
+
+// Function for BIT operations (Test bit)
+static inline void do_bit(lr35902* cpu, u8 value, u8 bit) {
+    u8 result = value & (1 << bit);
+
+    set_flag(cpu, FLAG_Z, result == 0);
+    set_flag(cpu, FLAG_N, false);
+    set_flag(cpu, FLAG_H, true);
+    // C flag is preserved
+}
+
+// Function for RES operations (Reset bit)
+static inline u8 do_res(lr35902* cpu, u8 value, u8 bit) {
+    return value & ~(1 << bit);
+}
+
+// Function for SET operations (Set bit)
+static inline u8 do_set(lr35902* cpu, u8 value, u8 bit) {
+    return value | (1 << bit);
+}
+
+
+
+// Implementation of the CB prefix handler
+void handle_cb_prefix(lr35902* cpu, mco_coro* co) {
+    u8 cb_opcode = lr35902_read8(cpu, cpu->pc++);
+    mco_yield(co);
+
+    u8 op_type = cb_opcode >> 6;  // Top 2 bits define operation type
+    u8 bit_num = (cb_opcode >> 3) & 0x07;  // Middle 3 bits define bit number or operation
+    u8 reg_num = cb_opcode & 0x07;  // Bottom 3 bits define register
+
+    u8 value = 0;
+    bool is_hl = reg_num == 0x06;
+
+    if (is_hl) {
+        value = lr35902_read8(cpu, cpu->hl);
+        mco_yield(co);
+    } else {
+        switch (reg_num) {
+            case 0: value = cpu->b; break;
+            case 1: value = cpu->c; break;
+            case 2: value = cpu->d; break;
+            case 3: value = cpu->e; break;
+            case 4: value = cpu->h; break;
+            case 5: value = cpu->l; break;
+            case 7: value = cpu->a; break;
+            default: break;
+        }
+    }
+
+    u8 result = 0;
+
+    switch (op_type) {
+        case 0:
+            switch (bit_num) {
+                case 0: result = do_rlc(cpu, value); break; // RLC
+                case 1: result = do_rrc(cpu, value); break; // RRC
+                case 2: result = do_rl(cpu, value); break;  // RL
+                case 3: result = do_rr(cpu, value); break;  // RR
+                case 4: result = do_sla(cpu, value); break; // SLA
+                case 5: result = do_sra(cpu, value); break; // SRA
+                case 6: result = do_swap(cpu, value); break; // SWAP
+                case 7: result = do_srl(cpu, value); break; // SRL
+            default: break;
+            }
+            break;
+
+        case 1:
+            do_bit(cpu, value, bit_num);
+            return; // BIT doesn't store results, so just return
+
+        case 2:
+            result = do_res(cpu, value, bit_num);
+            break;
+
+        case 3:
+            result = do_set(cpu, value, bit_num);
+            break;
+        default: break;
+    }
+
+    if (is_hl) {
+        lr35902_write8(cpu, cpu->hl, result);
+        mco_yield(co);
+    } else {
+        switch (reg_num) {
+            case 0: cpu->b = result; break;
+            case 1: cpu->c = result; break;
+            case 2: cpu->d = result; break;
+            case 3: cpu->e = result; break;
+            case 4: cpu->h = result; break;
+            case 5: cpu->l = result; break;
+            case 7: cpu->a = result; break;
+            default: break;
+        }
+    }
+}
+
 void lr35902_cpu_coro(mco_coro* co) {
   lr35902* lr35902 = mco_get_user_data(co);
 
@@ -1470,19 +1673,7 @@ void lr35902_cpu_coro(mco_coro* co) {
         break;
 
     case 0xCB: // PREFIX CB - 1+X M-cycles
-        {
-            u8 cb_opcode = lr35902_read8(lr35902, lr35902->pc++);
-            mco_yield(co);
-
-
-            // Example of how to start implementing CB operations:
-            switch (cb_opcode) {
-                // Implement CB operations here
-                default:
-                    // Unimplemented CB operation
-                    break;
-            }
-        }
+        handle_cb_prefix(lr35902, co);
         break;
 
     case 0xCC: // CALL Z,a16 - 6/3 M-cycles
