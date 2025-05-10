@@ -35,19 +35,17 @@ void lr35902_destroy(lr35902* cpu) {
   }
 }
 
-// Flag bit positions
-#define FLAG_Z 7  // Zero flag (bit 7)
-#define FLAG_N 6  // Subtract flag (bit 6)
-#define FLAG_H 5  // Half-carry flag (bit 5)
-#define FLAG_C 4  // Carry flag (bit 4)
+#define FLAG_Z 7  // Zero
+#define FLAG_N 6  // Subtract
+#define FLAG_H 5  // Half-carry
+#define FLAG_C 4  // Carry
 
-// Flag bit masks
-#define FLAG_Z_MASK (1 << FLAG_Z)  // 0x80
-#define FLAG_N_MASK (1 << FLAG_N)  // 0x40
-#define FLAG_H_MASK (1 << FLAG_H)  // 0x20
-#define FLAG_C_MASK (1 << FLAG_C)  // 0x10
+#define FLAG_Z_MASK (1 << FLAG_Z)
+#define FLAG_N_MASK (1 << FLAG_N)
+#define FLAG_H_MASK (1 << FLAG_H)
+#define FLAG_C_MASK (1 << FLAG_C)
 
-static inline void set_flag(lr35902* cpu, u8 flag, bool value) {
+static void set_flag(lr35902* cpu, u8 flag, bool value) {
     if (value) {
         cpu->f |= (1 << flag);
     } else {
@@ -55,15 +53,15 @@ static inline void set_flag(lr35902* cpu, u8 flag, bool value) {
     }
 }
 
-static inline bool get_flag(lr35902* cpu, u8 flag) {
+static bool get_flag(lr35902* cpu, u8 flag) {
     return (cpu->f & (1 << flag)) != 0;
 }
 
-static inline void update_zero_flag(lr35902* cpu, u8 value) {
+static void update_zero_flag(lr35902* cpu, u8 value) {
     set_flag(cpu, FLAG_Z, value == 0);
 }
 
-static inline void update_add_flags(lr35902* cpu, u8 a, u8 b, bool with_carry) {
+static void update_add_flags(lr35902* cpu, u8 a, u8 b, bool with_carry) {
     u8 carry = with_carry && get_flag(cpu, FLAG_C) ? 1 : 0;
     u16 result = a + b + carry;
 
@@ -73,7 +71,7 @@ static inline void update_add_flags(lr35902* cpu, u8 a, u8 b, bool with_carry) {
     set_flag(cpu, FLAG_C, result > 0xFF);
 }
 
-static inline void update_sub_flags(lr35902* cpu, u8 a, u8 b, bool with_carry) {
+static void update_sub_flags(lr35902* cpu, u8 a, u8 b, bool with_carry) {
     u8 carry = with_carry && get_flag(cpu, FLAG_C) ? 1 : 0;
     int result = a - b - carry;
 
@@ -83,7 +81,7 @@ static inline void update_sub_flags(lr35902* cpu, u8 a, u8 b, bool with_carry) {
     set_flag(cpu, FLAG_C, result < 0);
 }
 
-static inline u8 inc8(lr35902* cpu, u8 value) {
+static u8 inc8(lr35902* cpu, u8 value) {
     u8 result = value + 1;
 
     update_zero_flag(cpu, result);
@@ -93,7 +91,7 @@ static inline u8 inc8(lr35902* cpu, u8 value) {
     return result;
 }
 
-static inline u8 dec8(lr35902* cpu, u8 value) {
+static u8 dec8(lr35902* cpu, u8 value) {
     u8 result = value - 1;
 
     update_zero_flag(cpu, result);
@@ -103,7 +101,7 @@ static inline u8 dec8(lr35902* cpu, u8 value) {
     return result;
 }
 
-static inline void update_add16_flags(lr35902* cpu, u16 a, u16 b) {
+static void update_add16_flags(lr35902* cpu, u16 a, u16 b) {
     u32 result = a + b;
 
     set_flag(cpu, FLAG_N, false);
@@ -111,49 +109,7 @@ static inline void update_add16_flags(lr35902* cpu, u16 a, u16 b) {
     set_flag(cpu, FLAG_C, result > 0xFFFF);
 }
 
-static inline u8 rotate_left(lr35902* cpu, u8 value, bool through_carry) {
-    u8 old_carry = get_flag(cpu, FLAG_C) ? 1 : 0;
-    u8 new_carry = (value & 0x80) >> 7;
-    u8 result;
-
-    if (through_carry) {
-        // Rotate through carry (RL)
-        result = (value << 1) | old_carry;
-    } else {
-        // Rotate without carry (RLC)
-        result = (value << 1) | new_carry;
-    }
-
-    update_zero_flag(cpu, result);
-    set_flag(cpu, FLAG_N, false);
-    set_flag(cpu, FLAG_H, false);
-    set_flag(cpu, FLAG_C, new_carry);
-
-    return result;
-}
-
-static inline u8 rotate_right(lr35902* cpu, u8 value, bool through_carry) {
-    u8 old_carry = get_flag(cpu, FLAG_C) ? 1 : 0;
-    u8 new_carry = value & 0x01;
-    u8 result;
-
-    if (through_carry) {
-        // Rotate through carry (RR)
-        result = (value >> 1) | (old_carry << 7);
-    } else {
-        // Rotate without carry (RRC)
-        result = (value >> 1) | (new_carry << 7);
-    }
-
-    update_zero_flag(cpu, result);
-    set_flag(cpu, FLAG_N, false);
-    set_flag(cpu, FLAG_H, false);
-    set_flag(cpu, FLAG_C, new_carry);
-
-    return result;
-}
-
-static inline u8 rotate_a_special(lr35902* cpu, bool left, bool through_carry) {
+static u8 rotate_a_special(lr35902* cpu, bool left, bool through_carry) {
     u8 old_carry = get_flag(cpu, FLAG_C) ? 1 : 0;
     u8 value = cpu->a;
     u8 new_carry;
@@ -188,39 +144,33 @@ static inline u8 rotate_a_special(lr35902* cpu, bool left, bool through_carry) {
     return result;
 }
 
-// Helper function for AND operation
-static inline void update_and_flags(lr35902* cpu, u8 result) {
+static void update_and_flags(lr35902* cpu, u8 result) {
     set_flag(cpu, FLAG_Z, result == 0);
     set_flag(cpu, FLAG_N, false);
     set_flag(cpu, FLAG_H, true);  // H is always set for AND
     set_flag(cpu, FLAG_C, false);
 }
 
-// Helper function for XOR operation
-static inline void update_xor_flags(lr35902* cpu, u8 result) {
+static void update_xor_flags(lr35902* cpu, u8 result) {
     set_flag(cpu, FLAG_Z, result == 0);
     set_flag(cpu, FLAG_N, false);
     set_flag(cpu, FLAG_H, false);
     set_flag(cpu, FLAG_C, false);
 }
 
-// Helper function for OR operation
-static inline void update_or_flags(lr35902* cpu, u8 result) {
+static void update_or_flags(lr35902* cpu, u8 result) {
     set_flag(cpu, FLAG_Z, result == 0);
     set_flag(cpu, FLAG_N, false);
     set_flag(cpu, FLAG_H, false);
     set_flag(cpu, FLAG_C, false);
 }
 
-// Helper function for CP operation (like SUB but doesn't store result)
-static inline void cp_operation(lr35902* cpu, u8 value) {
+static void cp_operation(lr35902* cpu, u8 value) {
     update_sub_flags(cpu, cpu->a, value, false);
-    // Don't store the result in A - this is the key difference from SUB
 }
 
 
-// Function for RLC operations (Rotate Left Circular)
-static inline u8 do_rlc(lr35902* cpu, u8 value) {
+static u8 do_rlc(lr35902* cpu, u8 value) {
     u8 carry = (value & 0x80) >> 7;
     u8 result = (value << 1) | carry;
 
@@ -232,8 +182,7 @@ static inline u8 do_rlc(lr35902* cpu, u8 value) {
     return result;
 }
 
-// Function for RRC operations (Rotate Right Circular)
-static inline u8 do_rrc(lr35902* cpu, u8 value) {
+static u8 do_rrc(lr35902* cpu, u8 value) {
     u8 carry = value & 0x01;
     u8 result = (value >> 1) | (carry << 7);
 
@@ -245,8 +194,7 @@ static inline u8 do_rrc(lr35902* cpu, u8 value) {
     return result;
 }
 
-// Function for RL operations (Rotate Left through Carry)
-static inline u8 do_rl(lr35902* cpu, u8 value) {
+static u8 do_rl(lr35902* cpu, u8 value) {
     u8 old_carry = get_flag(cpu, FLAG_C) ? 1 : 0;
     u8 new_carry = (value & 0x80) >> 7;
     u8 result = (value << 1) | old_carry;
@@ -259,8 +207,7 @@ static inline u8 do_rl(lr35902* cpu, u8 value) {
     return result;
 }
 
-// Function for RR operations (Rotate Right through Carry)
-static inline u8 do_rr(lr35902* cpu, u8 value) {
+static u8 do_rr(lr35902* cpu, u8 value) {
     u8 old_carry = get_flag(cpu, FLAG_C) ? 1 : 0;
     u8 new_carry = value & 0x01;
     u8 result = (value >> 1) | (old_carry << 7);
@@ -273,8 +220,7 @@ static inline u8 do_rr(lr35902* cpu, u8 value) {
     return result;
 }
 
-// Function for SLA operations (Shift Left Arithmetic)
-static inline u8 do_sla(lr35902* cpu, u8 value) {
+static u8 do_sla(lr35902* cpu, u8 value) {
     u8 carry = (value & 0x80) >> 7;
     u8 result = value << 1;
 
@@ -286,8 +232,7 @@ static inline u8 do_sla(lr35902* cpu, u8 value) {
     return result;
 }
 
-// Function for SRA operations (Shift Right Arithmetic)
-static inline u8 do_sra(lr35902* cpu, u8 value) {
+static u8 do_sra(lr35902* cpu, u8 value) {
     u8 carry = value & 0x01;
     u8 result = (value >> 1) | (value & 0x80);
 
@@ -299,8 +244,7 @@ static inline u8 do_sra(lr35902* cpu, u8 value) {
     return result;
 }
 
-// Function for SWAP operations
-static inline u8 do_swap(lr35902* cpu, u8 value) {
+static u8 do_swap(lr35902* cpu, u8 value) {
     u8 result = ((value & 0x0F) << 4) | ((value & 0xF0) >> 4);
 
     set_flag(cpu, FLAG_Z, result == 0);
@@ -311,8 +255,7 @@ static inline u8 do_swap(lr35902* cpu, u8 value) {
     return result;
 }
 
-// Function for SRL operations (Shift Right Logical)
-static inline u8 do_srl(lr35902* cpu, u8 value) {
+static u8 do_srl(lr35902* cpu, u8 value) {
     u8 carry = value & 0x01;
     u8 result = value >> 1;
 
@@ -324,8 +267,7 @@ static inline u8 do_srl(lr35902* cpu, u8 value) {
     return result;
 }
 
-// Function for BIT operations (Test bit)
-static inline void do_bit(lr35902* cpu, u8 value, u8 bit) {
+static void do_bit(lr35902* cpu, u8 value, u8 bit) {
     u8 result = value & (1 << bit);
 
     set_flag(cpu, FLAG_Z, result == 0);
@@ -334,19 +276,15 @@ static inline void do_bit(lr35902* cpu, u8 value, u8 bit) {
     // C flag is preserved
 }
 
-// Function for RES operations (Reset bit)
-static inline u8 do_res(lr35902* cpu, u8 value, u8 bit) {
+static u8 do_res(lr35902* cpu, u8 value, u8 bit) {
     return value & ~(1 << bit);
 }
 
-// Function for SET operations (Set bit)
-static inline u8 do_set(lr35902* cpu, u8 value, u8 bit) {
+static u8 do_set(lr35902* cpu, u8 value, u8 bit) {
     return value | (1 << bit);
 }
 
 
-
-// Implementation of the CB prefix handler
 void handle_cb_prefix(lr35902* cpu, mco_coro* co) {
     u8 cb_opcode = lr35902_read8(cpu, cpu->pc++);
     mco_yield(co);
@@ -379,14 +317,14 @@ void handle_cb_prefix(lr35902* cpu, mco_coro* co) {
     switch (op_type) {
         case 0:
             switch (bit_num) {
-                case 0: result = do_rlc(cpu, value); break; // RLC
-                case 1: result = do_rrc(cpu, value); break; // RRC
-                case 2: result = do_rl(cpu, value); break;  // RL
-                case 3: result = do_rr(cpu, value); break;  // RR
-                case 4: result = do_sla(cpu, value); break; // SLA
-                case 5: result = do_sra(cpu, value); break; // SRA
-                case 6: result = do_swap(cpu, value); break; // SWAP
-                case 7: result = do_srl(cpu, value); break; // SRL
+                case 0: result = do_rlc(cpu, value); break;
+                case 1: result = do_rrc(cpu, value); break;
+                case 2: result = do_rl(cpu, value); break;
+                case 3: result = do_rr(cpu, value); break;
+                case 4: result = do_sla(cpu, value); break;
+                case 5: result = do_sra(cpu, value); break;
+                case 6: result = do_swap(cpu, value); break;
+                case 7: result = do_srl(cpu, value); break;
             default: break;
             }
             break;
@@ -2198,9 +2136,10 @@ void lr35902_cpu_coro(mco_coro* co) {
 
         lr35902->pc = 0x0038;
         break;
+
+    default: break;
   }
 
-    // Check if we've used all our cycles
     if (lr35902->remaining_cycles == 0) {
       break;
     }
